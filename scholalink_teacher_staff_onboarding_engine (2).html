@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScholaLink · Teacher & Staff Onboarding & Record Engine</title>
+
+<!-- Google Fonts, Tailwind CSS & FontAwesome -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- SheetJS XLSX Library for Bulk Staff Importing -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+:root{
+  --navy:#0b0f19; --navy-card:#151c28; --navy-panel:#0f172a; --border:#1e293b;
+  --purple:#8b5cf6; --purple-dark:#7c3aed; --purple-tint:rgba(139, 92, 246, 0.12);
+  --teal:#14b8a6; --indigo:#6366f1; --amber:#f59e0b; --rose:#f43f5e; --emerald:#10b981;
+  --err-bg:rgba(239, 68, 68, 0.15); --err-bd:rgba(239, 68, 68, 0.5); --err-tx:#fca5a5;
+  --ok-bg:rgba(16, 185, 129, 0.15); --ok-tx:#6ee7b7;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--navy);color:#f8fafc;font-family:'Inter',sans-serif;min-height:100vh;}
+h1,h2,h3,h4{font-family:'Sora',sans-serif;margin:0;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+button{font-family:inherit;cursor:pointer;}
+input,select,textarea{font-family:inherit;font-size:13.5px;}
+
+/* Topbar Header & Navigation */
+.topbar{background:rgba(15, 23, 42, 0.95);color:#fff;padding:14px 28px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);backdrop-filter:blur(12px);}
+.brand{display:flex;align-items:center;gap:12px;}
+.brand .mark{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--purple),var(--indigo));display:flex;align-items:center;justify-content:center;font-family:'Sora';font-weight:800;font-size:18px;color:#fff;box-shadow:0 4px 14px rgba(139,92,246,0.3);}
+.brand h1{font-size:18px;font-weight:700;letter-spacing:.2px;}
+.brand span{display:block;font-size:11px;color:#94a3b8;font-weight:500;}
+
+.role-select{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.05);padding:6px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.1);}
+.role-select label{font-size:11px;color:#94a3b8;text-transform:uppercase;font-weight:700;}
+.role-select select{background:transparent;color:#c084fc;border:none;font-size:13px;font-weight:700;outline:none;cursor:pointer;}
+.role-select select option{background:#0f172a;color:#fff;}
+
+/* Navigation Tabs Bar */
+.tabwrap{max-width:1160px;margin:20px auto 0;padding:0 24px;}
+.tabs{display:inline-flex;background:#0f172a;border:1px solid var(--border);border-radius:999px;padding:4px;}
+.tab{padding:9px 20px;border:none;background:transparent;border-radius:999px;font-weight:600;font-size:13px;color:#94a3b8;display:flex;align-items:center;gap:8px;transition:all 0.2s;}
+.tab.active{background:var(--purple);color:#fff;box-shadow:0 4px 14px rgba(139,92,246,0.35);}
+.tab.locked{opacity:.5;cursor:not-allowed;}
+
+.container{max-width:1160px;margin:20px auto 60px;padding:0 24px;}
+.card{background:var(--navy-card);border:1px solid var(--border);border-radius:16px;box-shadow:0 12px 32px rgba(0,0,0,0.45);overflow:hidden;}
+
+/* Onboarding Wizard Rail & Layout */
+.wizard{display:grid;grid-template-columns:240px 1fr;gap:0;}
+.steprail{border-right:1px solid var(--border);padding:24px 18px;background:rgba(15, 23, 42, 0.6);}
+.steprail .progress{height:4px;background:var(--border);border-radius:99px;margin-bottom:20px;overflow:hidden;}
+.steprail .progress i{display:block;height:100%;background:var(--purple);transition:width .3s ease;}
+.step-item{display:flex;align-items:center;gap:10px;padding:10px 10px;border-radius:10px;font-size:12.5px;color:#94a3b8;font-weight:600;margin-bottom:4px;transition:all 0.2s;}
+.step-item .dot{width:24px;height:24px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
+.step-item.active{color:#fff;background:var(--purple-tint);}
+.step-item.active .dot{border-color:var(--purple);color:var(--purple);background:rgba(139,92,246,0.15);}
+.step-item.done .dot{background:var(--purple);border-color:var(--purple);color:#fff;font-weight:bold;}
+
+.step-body{padding:28px 34px;min-height:440px;}
+.step-body h2{font-size:19px;margin-bottom:4px;color:#fff;}
+.step-body .sub{color:#94a3b8;font-size:13px;margin-bottom:22px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:11.5px;font-weight:700;color:#cbd5e1;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;}
+.field input,.field select,.field textarea{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;outline:none;background:#0f172a;color:#fff;}
+.field textarea{border-radius:12px;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--purple);box-shadow:0 0 0 2px rgba(139,92,246,0.25);}
+.field .err{color:var(--err-tx);font-size:11.5px;margin-top:5px;display:none;font-weight:600;}
+.field.invalid input,.field.invalid select,.field.invalid textarea{border-color:var(--err-bd);background:var(--err-bg);}
+.field.invalid .err{display:block;}
+
+.uploadgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.dropslot{border:1.5px dashed var(--border);border-radius:12px;padding:16px;text-align:center;font-size:12px;color:#94a3b8;position:relative;background:#0f172a;transition:all 0.2s;}
+.dropslot.filled{border-color:var(--purple);background:var(--purple-tint);color:var(--purple);}
+.dropslot.invalid-slot{border-color:var(--err-bd);background:var(--err-bg);}
+.dropslot .name{font-weight:700;color:#fff;word-break:break-all;}
+
+.review-summary{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;font-size:13px;margin-bottom:18px;background:#0f172a;padding:18px;border-radius:12px;border:1px solid var(--border);}
+.review-summary div b{display:block;color:#94a3b8;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px;}
+
+.wizard-footer{display:flex;justify-content:space-between;align-items:center;padding:18px 34px;border-top:1px solid var(--border);background:rgba(15, 23, 42, 0.5);}
+.btn{border:none;padding:11px 22px;border-radius:10px;font-weight:700;font-size:13px;transition:all 0.2s;}
+.btn-ghost{background:#0f172a;border:1px solid var(--border);color:#e2e8f0;}
+.btn-ghost:hover{background:#1e293b;color:#fff;}
+.btn-purple{background:var(--purple);color:#fff;}
+.btn-purple:hover{background:var(--purple-dark);}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+
+/* Ticket & Card Components */
+.ticket{display:grid;grid-template-columns:1fr 220px;border:1px solid var(--amber);border-radius:16px;overflow:hidden;margin-top:18px;}
+.ticket.approved{border-color:var(--purple);}
+.ticket-main{background:linear-gradient(135deg, #0f172a, #1e293b);color:#fff;padding:24px 26px;}
+.ticket-main .tag{font-size:11px;letter-spacing:1.5px;color:var(--amber);text-transform:uppercase;font-weight:800;}
+.ticket.approved .ticket-main .tag{color:var(--purple);}
+.ticket-main h3{font-size:22px;margin-top:6px;color:#fff;}
+.ticket-main .meta{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px 20px;font-size:12.5px;color:#94a3b8;}
+.ticket-main .meta b{color:#fff;display:block;font-family:'IBM Plex Mono';font-size:13px;margin-top:2px;}
+.ticket-stub{background:var(--amber);color:#0f172a;padding:22px 18px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;border-left:2px dashed rgba(15,23,42,.3);}
+.ticket.approved .ticket-stub{background:var(--purple);color:#fff;}
+.ticket-stub .id{font-family:'IBM Plex Mono';font-size:13px;font-weight:700;letter-spacing:.5px;margin-top:8px;}
+
+/* Modals */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:90;}
+.modal{background:#151c28;border:1px solid var(--border);border-radius:16px;padding:28px 30px;width:440px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.6);}
+.hidden{display:none !important;}
+.panel{border:1px solid var(--border);border-radius:12px;padding:18px 20px;background:#0f172a;}
+</style>
+</head>
+<body>
+
+<!-- Master Admin Gate Modal -->
+<div class="modal-bg hidden" id="adminGateOverlay">
+  <div class="modal">
+    <div style="width:52px;height:52px;border-radius:14px;background:rgba(139,92,246,0.15);color:#c084fc;border:1px solid rgba(139,92,246,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:20px;">🔐</div>
+    <h3 style="color:#fff;">Staff Admin Authorization</h3>
+    <div style="color:#94a3b8;font-size:13px;margin-bottom:16px">Enter the Admin Passcode to manage faculty onboarding queues.</div>
+    <input type="password" id="adminPassInput" maxlength="12" placeholder="••••••••" style="width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:10px;text-align:center;letter-spacing:3px;font-family:'IBM Plex Mono';font-size:16px;margin-bottom:10px;background:#0f172a;color:#fff;" onkeydown="if(event.key==='Enter')checkAdminPassword()">
+    <div id="adminGateErr" style="color:var(--err-tx);font-size:12px;margin-bottom:10px;min-height:14px;"></div>
+    <button class="btn btn-purple" id="adminUnlockBtn" style="width:100%" onclick="checkAdminPassword()">Unlock Staff Admin</button>
+  </div>
+</div>
+
+<!-- Admin Change Master Passcode Modal -->
+<div class="modal-bg hidden" id="changeAdminPassModal">
+  <div class="modal" style="width:400px;text-align:left;">
+    <h3 class="mb-2 text-center text-purple-400">🔑 Change Master Admin Passcode</h3>
+    <div class="text-slate-400 text-xs mb-4 text-center">Updates the Master Admin Passcode on Google Server properties.</div>
+    <div class="field">
+      <label>Current Admin Passcode</label>
+      <input type="password" id="adminOldPassInp" placeholder="Enter current passcode">
+    </div>
+    <div class="field">
+      <label>New Passcode</label>
+      <input type="password" id="adminNewPassInp" placeholder="Min 6 characters">
+    </div>
+    <div class="field">
+      <label>Confirm New Passcode</label>
+      <input type="password" id="adminConfirmPassInp" placeholder="Re-enter new passcode">
+    </div>
+    <div id="adminPassChangeErr" class="text-red-400 text-xs mb-3 font-semibold"></div>
+    <div class="flex space-x-3">
+      <button class="btn btn-ghost flex-1" onclick="closeAdminPassModal()">Cancel</button>
+      <button class="btn btn-purple flex-1" onclick="submitAdminPasscodeChange()">Save Passcode</button>
+    </div>
+  </div>
+</div>
+
+<!-- Camera Modal -->
+<div class="modal-bg hidden" id="cameraModal">
+  <div class="modal" style="width:480px">
+    <h3 style="color:#fff;">Capture Staff Document / Photo</h3>
+    <div style="color:#94a3b8;font-size:12px;margin-bottom:12px">Position your document or photo inside the frame below.</div>
+    <div style="width:100%;height:260px;background:#000;border-radius:12px;overflow:hidden;position:relative;margin-bottom:14px;">
+      <video id="cameraVideo" autoplay playsinline style="width:100%;height:100%;object-fit:cover;"></video>
+      <canvas id="cameraCanvas" class="hidden"></canvas>
+    </div>
+    <div class="flex space-x-3">
+      <button class="btn btn-ghost flex-1" onclick="stopCamera()">Cancel</button>
+      <button class="btn btn-purple flex-1" onclick="takeSnapshot()">Take Snapshot</button>
+    </div>
+  </div>
+</div>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="mark">SL</div>
+    <div>
+      <h1>ScholaLink</h1>
+      <span>Teacher & Staff Onboarding & Record Engine</span>
+    </div>
+  </div>
+  
+  <div class="flex items-center space-x-4">
+    <div class="role-select">
+      <label>Role Access</label>
+      <select id="roleSelect" onchange="handleRoleChange(this.value)">
+        <option value="public" selected>Public Applicant (Unprotected)</option>
+        <option value="staff_portal">Approved Staff Portal</option>
+        <option value="admin">Admin (Passcode Required)</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="tabwrap">
+  <div class="tabs">
+    <button class="tab active" id="tabWizardBtn" onclick="switchTab('wizard')"><i class="fas fa-id-card-clip"></i> Staff Onboarding Wizard</button>
+    <button class="tab hidden" id="tabStaffPortalBtn" onclick="switchTab('staff_portal')"><i class="fas fa-user-gear"></i> My Staff Profile</button>
+    <button class="tab locked" id="tabBulkBtn" onclick="switchTab('bulk')"><i class="fas fa-file-csv"></i> Mass Batch Staff Import <span id="bulkLockIcon">🔒</span></button>
+    <button class="tab locked" id="tabDashBtn" onclick="switchTab('dashboard')"><i class="fas fa-sliders"></i> Admin Verification Queue <span id="dashLockIcon">🔒</span></button>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="card" id="wizardPane">
+    <div class="wizard">
+      <div class="steprail">
+        <div class="progress"><i id="progressFill" style="width:20%"></i></div>
+        <div id="stepList"></div>
+      </div>
+      <div>
+        <div class="step-body" id="stepBody"></div>
+        <div class="wizard-footer">
+          <button class="btn btn-ghost" id="backBtn" onclick="prevStep()">Back</button>
+          <div class="mono text-xs text-purple-400" id="refPreview"></div>
+          <button class="btn btn-purple" id="nextBtn" onclick="nextStep()">Continue</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card hidden p-8" id="staffPortalPane">
+    <div class="max-w-md mx-auto" id="staffLoginBox">
+      <div class="text-center mb-6">
+        <div class="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center mx-auto mb-3 text-2xl">
+          <i class="fas fa-user-check"></i>
+        </div>
+        <h2 class="text-xl font-bold text-white">Approved Staff Portal Sign In</h2>
+        <p class="text-xs text-slate-400 mt-1">Enter your Official Staff ID & Password sent in your approval confirmation email.</p>
+      </div>
+
+      <div class="field">
+        <label>Official Staff ID</label>
+        <input type="text" id="loginStaffId" placeholder="e.g. STF-2026-1042" class="mono uppercase">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="Enter your password">
+      </div>
+      <div id="staffLoginErr" class="text-red-400 text-xs mb-3 font-semibold text-center"></div>
+      <button class="btn btn-purple w-full" id="staffLoginBtn" onclick="performStaffLogin()">Sign In to Staff Portal</button>
+    </div>
+
+    <div id="staffProfileContent" class="hidden max-w-2xl mx-auto space-y-6"></div>
+  </div>
+
+  <div class="card hidden p-6" id="bulkPane">
+    <div class="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
+      <div>
+        <h2 class="text-lg font-bold text-white">Mass Batch Staff Hiring Import</h2>
+        <p class="text-xs text-slate-400">Upload CSV/XLSX spreadsheets to bulk onboard teaching faculty & administrative personnel.</p>
+      </div>
+      <button class="btn btn-ghost" onclick="downloadStaffTemplate()"><i class="fas fa-download mr-1"></i> Download Template (.xlsx)</button>
+    </div>
+
+    <div class="border-2 border-dashed border-slate-700 rounded-xl p-10 text-center bg-slate-900/60" id="dropzone">
+      <i class="fas fa-cloud-arrow-up text-3xl text-purple-400 mb-2 block"></i>
+      <div class="text-white font-bold text-sm mb-1">Drop your file here, or click to browse</div>
+      <div class="text-xs text-slate-400">.csv, .xlsx — up to 20MB</div>
+      <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" class="mt-4 border border-slate-700 p-2 rounded text-xs bg-slate-900">
+    </div>
+  </div>
+
+  <div class="card hidden p-6 space-y-6" id="dashPane">
+    <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+      <div>
+        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+          <i class="fas fa-sliders text-purple-400"></i> Master Staff Verification Queue & Class Assignment Engine
+        </h2>
+        <p class="text-xs text-slate-400 mt-1">Review applicant qualifications, assign class responsibilities, and issue credentials.</p>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn btn-ghost text-xs border-purple-500/40 text-purple-300" onclick="fetchGoogleSheetDatabase()">
+          <i class="fas fa-sync-alt mr-1"></i> Refresh Queue
+        </button>
+        <button class="btn btn-ghost text-xs border-indigo-500/40 text-indigo-300" onclick="openAdminPassModal()">
+          🔑 Change Admin Passcode
+        </button>
+      </div>
+    </div>
+
+    <div id="dashQueueContent"></div>
+  </div>
+
+</div>
+
+<script>
+// Connected Deployed Google Apps Script API Endpoint URL
+const GOOGLE_APPS_SCRIPT_API_URL = "https://script.google.com/macros/s/AKfycbxTJ8xIvJuJYrOFAkAl1sanTNpYa4uDxy8UQ5OhSq-e2G0jwsD-gL6hMIIPKmKIXFfv/exec";
+
+let currentAdminPasscode = "3439182";
+let adminSessionToken = null;
+
+// Master In-Memory Store for Staff Records (Initial store empty - zero seed users)
+const DB = {
+  staff: []
+};
+
+const form = { staffType: "Teaching Faculty" };
+const uploadedFiles = {};
+let currentStep = 0;
+let mediaStream = null;
+let activeCameraSlot = null;
+
+const wizardSteps = [
+  "Staff Demographics",
+  "Qualifications & License",
+  "Experience & Salary",
+  "Advanced Document Vault",
+  "Review & Submit"
+];
+
+// Helper: Convert File to Base64 for Google Drive
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      const base64String = reader.result.split(',')[1];
+      resolve({
+        name: file.name,
+        mimeType: file.type,
+        base64: base64String
+      });
+    };
+    reader.onerror = error => reject(error);
+  });
+}
+
+function getAgeInYears(dobString) {
+  if (!dobString) return 0;
+  const dob = new Date(dobString);
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+  return age;
+}
+
+/* Strict Phone Validation Engine:
+   - 10 to 15 digits
+   - Rejects single digit repeated >5 times overall or consecutively
+   - Rejects sequential patterns (1234567890, 9876543210)
+*/
+function isRealisticPhone(phoneStr) {
+  if (!phoneStr) return false;
+  const clean = phoneStr.replace(/\D/g, '');
+  if (clean.length < 10 || clean.length > 15) return false;
+
+  // Check total occurrences of any single digit (max 5)
+  const digitCounts = {};
+  for (const ch of clean) {
+    digitCounts[ch] = (digitCounts[ch] || 0) + 1;
+    if (digitCounts[ch] > 5) return false;
+  }
+
+  // Check consecutive identical digits (max 4)
+  if (/(.)\1{4,}/.test(clean)) return false;
+
+  // Check sequential patterns
+  const seqAsc = "01234567890123456789";
+  const seqDesc = "98765432109876543210";
+  if (seqAsc.includes(clean) || seqDesc.includes(clean)) return false;
+
+  return true;
+}
+
+/* Strict Email Validation Engine:
+   - Proper RFC5322 syntax with valid TLD
+   - Prevents fake/dummy prefixes (test, dummy, admin, fake, asdf, etc.)
+*/
+function isRealisticEmail(emailStr) {
+  if (!emailStr) return false;
+  const trimmed = emailStr.trim().toLowerCase();
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/;
+  if (!emailRegex.test(trimmed)) return false;
+
+  const parts = trimmed.split('@');
+  if (parts.length !== 2) return false;
+  const user = parts[0];
+  const domain = parts[1];
+
+  if (user.length < 2 || domain.length < 4) return false;
+  
+  // Reject simple repeating single character usernames like aaaaa@domain.com
+  if (user.split('').every(ch => ch === user[0])) return false;
+
+  // Reject generic fake prefixes
+  if (/^(test|dummy|fake|asdf|qwerty|12345|temp|example|sample)$/i.test(user)) return false;
+
+  return true;
+}
+
+async function syncDataToGoogleSheet(action, payload) {
+  try {
+    const res = await fetch(GOOGLE_APPS_SCRIPT_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action: action,
+        payload: payload,
+        updatedAt: new Date().toISOString()
+      })
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn("GAS Sync Notice:", err);
+  }
+  return null;
+}
+
+async function fetchGoogleSheetDatabase() {
+  try {
+    const res = await fetch(`${GOOGLE_APPS_SCRIPT_API_URL}?action=getUsers&t=${Date.now()}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.users)) {
+        DB.staff = data.users;
+      } else if (data && Array.isArray(data.staff)) {
+        DB.staff = data.staff;
+      }
+      if (adminSessionToken) {
+        renderStaffDashboard();
+      }
+    }
+  } catch (err) {
+    console.warn("Fetch Database Notice:", err);
+  }
+}
+
+function renderStepList(){
+  document.getElementById('stepList').innerHTML = wizardSteps.map((s,i)=>`
+    <div class="step-item ${i===currentStep?'active':''} ${i<currentStep?'done':''}">
+      <div class="dot">${i<currentStep?'✓':i+1}</div>${s}
+    </div>`).join('');
+  document.getElementById('progressFill').style.width = ((currentStep+1)/wizardSteps.length*100)+'%';
+}
+
+function fieldHTML(id,label,type,opts){
+  opts = opts||{};
+  const val = form[id]||'';
+  let input;
+  if(type==='select'){
+    input = `<select id="f_${id}" ${opts.attr||''}>${opts.options}</select>`;
+  } else if(type==='textarea'){
+    input = `<textarea id="f_${id}" rows="3" ${opts.attr||''}>${val}</textarea>`;
+  } else {
+    input = `<input type="${type}" id="f_${id}" value="${val}" placeholder="${opts.ph||''}" ${opts.attr||''}>`;
+  }
+  return `<div class="field" id="wrap_${id}"><label>${label} *</label>${input}<div class="err" id="err_${id}">${opts.errNote || 'Required field'}</div></div>`;
+}
+
+function renderStep(){
+  renderStepList();
+  const body = document.getElementById('stepBody');
+  document.getElementById('backBtn').disabled = currentStep===0;
+  document.getElementById('nextBtn').textContent = currentStep===wizardSteps.length-1 ? 'Submit Staff Application' : 'Continue';
+
+  if (currentStep === 0) {
+    body.innerHTML = `
+      <h2>Staff Personal Demographics</h2>
+      <div class="sub">Primary contact and emergency details for faculty registration. All fields are mandatory. Must be 21 to 70 years old.</div>
+      <div class="grid2">
+        ${fieldHTML('staffType','Staff Role Category','select',{options:`
+          <option value="Teaching Faculty" ${form.staffType==='Teaching Faculty'?'selected':''}>Teaching Faculty (Teacher/Lecturer)</option>
+          <option value="Administrative Staff" ${form.staffType==='Administrative Staff'?'selected':''}>Administrative Staff</option>
+          <option value="Support & Lab Staff" ${form.staffType==='Support & Lab Staff'?'selected':''}>Support & Lab Staff</option>
+          <option value="Security & Operations" ${form.staffType==='Security & Operations'?'selected':''}>Security & Facilities</option>
+        `})}
+        ${fieldHTML('fullName','Full Name','text',{ph:'e.g. Dr. Ramesh Sharma', errNote:'Full Name required (min 3 characters, valid letters)'})}
+        ${fieldHTML('dob','Date of Birth','date',{errNote:'Staff member must be between 21 and 70 years old'})}
+        ${fieldHTML('gender','Gender','select',{options:`<option value="">Select Gender</option><option ${form.gender==='Male'?'selected':''}>Male</option><option ${form.gender==='Female'?'selected':''}>Female</option><option ${form.gender==='Other'?'selected':''}>Other</option>`, errNote:'Gender selection is required'})}
+        ${fieldHTML('email','Official Email Address','email',{ph:'name@domain.com', errNote:'Must be a realistic, valid email address'})}
+        ${fieldHTML('phone','Mobile Phone','text',{ph:'10 to 15 digits', errNote:'Valid 10-15 digit phone required. Placeholder numbers (e.g. 9999999999) rejected.'})}
+        ${fieldHTML('emergencyPhone','Emergency Contact Number','text',{ph:'10 to 15 digits', errNote:'Valid emergency phone required (cannot match primary phone)'})}
+        ${fieldHTML('city','City / Residential Location','text',{ph:'e.g. Bangalore', errNote:'Residential City required'})}
+      </div>`;
+  }
+  else if (currentStep === 1) {
+    body.innerHTML = `
+      <h2>Educational Qualifications & Teaching License</h2>
+      <div class="sub">Academic credentials, university degrees, and official teaching registration. All fields mandatory.</div>
+      <div class="grid2">
+        ${fieldHTML('highestDegree','Highest Degree / Qualification','select',{options:`
+          <option value="">Select Qualification</option>
+          <option ${form.highestDegree==="Ph.D. / Doctorate"?'selected':''}>Ph.D. / Doctorate</option>
+          <option ${form.highestDegree==="Master's Degree (M.Sc / M.A / M.Tech / M.Ed)"?'selected':''}>Master's Degree (M.Sc / M.A / M.Tech / M.Ed)</option>
+          <option ${form.highestDegree==="Bachelor's Degree (B.Sc / B.A / B.Tech)"?'selected':''}>Bachelor's Degree (B.Sc / B.A / B.Tech)</option>
+          <option ${form.highestDegree==="B.Ed (Bachelor of Education)"?'selected':''}>B.Ed (Bachelor of Education)</option>
+          <option ${form.highestDegree==="Diploma / Professional Cert"?'selected':''}>Diploma / Professional Cert</option>
+        `, errNote:'Qualification degree is required'})}
+        ${fieldHTML('specialization','Specialization / Subject Area','text',{ph:'e.g. Mathematics, Physics, English Literature', errNote:'Specialization required (min 2 characters)'})}
+        ${fieldHTML('university','University / College Name','text',{ph:'e.g. University of Delhi', errNote:'University name required (min 3 characters)'})}
+        ${fieldHTML('passingYear','Year of Passing','text',{ph:'e.g. 2018', errNote:'Valid passing year (1970 - 2026) required'})}
+        ${fieldHTML('licenseNo','Teaching License / Registration No.','text',{ph:'e.g. REG-8849-IN', errNote:'Registration / License number required'})}
+      </div>`;
+  }
+  else if (currentStep === 2) {
+    body.innerHTML = `
+      <h2>Work Experience & Compensation Details</h2>
+      <div class="sub">Past institutional experience, previous designation, and salary structure. All fields mandatory.</div>
+      <div class="grid2">
+        ${fieldHTML('totalExperience','Total Work Experience','select',{options:`
+          <option value="">Select Experience</option>
+          <option value="Fresher" ${form.totalExperience==='Fresher'?'selected':''}>Fresher (0 Years)</option>
+          <option value="1-3 Years" ${form.totalExperience==='1-3 Years'?'selected':''}>1 - 3 Years</option>
+          <option value="3-5 Years" ${form.totalExperience==='3-5 Years'?'selected':''}>3 - 5 Years</option>
+          <option value="5-10 Years" ${form.totalExperience==='5-10 Years'?'selected':''}>5 - 10 Years</option>
+          <option value="10+ Years" ${form.totalExperience==='10+ Years'?'selected':''}>10+ Years</option>
+        `, errNote:'Experience selection required'})}
+        ${fieldHTML('previousSchool','Previous School / Institution','text',{ph:'e.g. St. Xavier High School (or N/A if Fresher)', errNote:'Previous school/institution required'})}
+        ${fieldHTML('previousDesignation','Previous Designation','text',{ph:'e.g. Senior Teacher (or N/A if Fresher)', errNote:'Previous designation required'})}
+        ${fieldHTML('previousSalary','Previous Monthly CTC / Salary','text',{ph:'e.g. ₹55,000 / month (or N/A)', errNote:'Previous salary required'})}
+        ${fieldHTML('expectedSalary','Expected Monthly Salary','text',{ph:'e.g. ₹65,000 / month', errNote:'Expected monthly salary required'})}
+        ${fieldHTML('noticePeriod','Notice Period / Expected Joining','select',{options:`
+          <option value="">Select Joining Timeline</option>
+          <option ${form.noticePeriod==='Immediate Joining'?'selected':''}>Immediate Joining</option>
+          <option ${form.noticePeriod==='15 Days'?'selected':''}>15 Days</option>
+          <option ${form.noticePeriod==='30 Days'?'selected':''}>30 Days</option>
+          <option ${form.noticePeriod==='60 Days'?'selected':''}>60 Days</option>
+        `, errNote:'Notice period selection required'})}
+      </div>`;
+  }
+  else if (currentStep === 3) {
+    body.innerHTML = `
+      <h2>Advanced Professional Document Vault</h2>
+      <div class="sub">Upload or capture certificates, experience letters, and salary records. <b>All 5 documents are strictly mandatory</b>.</div>
+      <div class="uploadgrid">
+        ${renderDocSlot('govId', '1. Government Photo ID (Aadhaar / Passport)')}
+        ${renderDocSlot('degreeCert', '2. Degree Certificate / Marksheets')}
+        ${renderDocSlot('experienceCert', '3. Experience Letter / Relieving Letter')}
+        ${renderDocSlot('salarySlips', '4. Last 3 Months Salary Slips')}
+        ${renderDocSlot('badgePhoto', '5. Staff ID Badge Photo (Live Camera)')}
+      </div>
+      <div class="err text-center mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl" id="docVaultErr" style="display:none;color:var(--err-tx)">
+        ⚠️ Mandatory Vault Alert: You must upload/capture ALL 5 professional documents before continuing.
+      </div>`;
+  }
+  else if (currentStep === 4) {
+    body.innerHTML = `
+      <h2>Review & Submit Staff Application</h2>
+      <div class="sub">Your details will be submitted to the Admin for qualification and credential inspection.</div>
+      <div class="review-summary">
+        <div><b>Applicant Name</b>${form.fullName||'—'}</div>
+        <div><b>Role Category</b>${form.staffType||'—'}</div>
+        <div><b>Date of Birth</b>${form.dob||'—'} (Age: ${getAgeInYears(form.dob)} yrs)</div>
+        <div><b>Email & Phone</b>${form.email||'—'} | ${form.phone||'—'}</div>
+        <div><b>Emergency Phone</b>${form.emergencyPhone||'—'}</div>
+        <div><b>Location</b>${form.city||'—'}</div>
+        <div><b>Qualification</b>${form.highestDegree||'—'} (${form.specialization||'General'})</div>
+        <div><b>University</b>${form.university||'—'} (Year: ${form.passingYear||'—'})</div>
+        <div><b>License / Reg No</b>${form.licenseNo||'—'}</div>
+        <div><b>Total Experience</b>${form.totalExperience||'—'}</div>
+        <div><b>Expected Salary</b>${form.expectedSalary||'—'}</div>
+        <div><b>Attached Documents</b>${Object.keys(uploadedFiles).length} / 5 Uploaded</div>
+      </div>
+      <div id="confirmationArea"></div>`;
+  }
+}
+
+function renderDocSlot(slotKey, label) {
+  const isFilled = !!uploadedFiles[slotKey];
+  return `
+    <div class="dropslot ${isFilled ? 'filled' : ''}" id="slot_${slotKey}">
+      <div class="mb-2 font-semibold text-xs">${isFilled ? '📄 <span class="name">'+uploadedFiles[slotKey].name+'</span>' : label}</div>
+      <div class="flex justify-center gap-2 mt-2">
+        <label class="btn btn-ghost text-xs cursor-pointer py-1 px-3">
+          Upload File
+          <input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFileUpload('${slotKey}', this.files[0])" style="display:none">
+        </label>
+        <button class="btn btn-purple text-xs py-1 px-3" type="button" onclick="openCamera('${slotKey}')">📷 Camera</button>
+      </div>
+    </div>`;
+}
+
+function handleFileUpload(slotKey, file) {
+  if (!file) return;
+  uploadedFiles[slotKey] = file;
+  renderStep();
+}
+
+function openCamera(slotKey) {
+  activeCameraSlot = slotKey;
+  document.getElementById('cameraModal').classList.remove('hidden');
+  const video = document.getElementById('cameraVideo');
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+    .then(stream => {
+      mediaStream = stream;
+      video.srcObject = stream;
+    })
+    .catch(err => {
+      alert('Camera access denied or unavailable.');
+      stopCamera();
+    });
+}
+
+function stopCamera() {
+  if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+  document.getElementById('cameraModal').classList.add('hidden');
+}
+
+function takeSnapshot() {
+  const video = document.getElementById('cameraVideo');
+  const canvas = document.getElementById('cameraCanvas');
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+  canvas.toBlob(blob => {
+    uploadedFiles[activeCameraSlot] = new File([blob], `Staff_${activeCameraSlot}_${Date.now()}.jpg`, { type: 'image/jpeg' });
+    stopCamera();
+    renderStep();
+  }, 'image/jpeg');
+}
+
+function collectStepFields(){
+  document.querySelectorAll('[id^="f_"]').forEach(el=>{ form[el.id.slice(2)] = el.value.trim(); });
+}
+
+function validateStep() {
+  collectStepFields();
+  let isValid = true;
+  document.querySelectorAll('.field').forEach(f => f.classList.remove('invalid'));
+
+  if (currentStep === 0) {
+    if (!form.fullName || form.fullName.trim().length < 3 || !/^[a-zA-Z\s.-]+$/.test(form.fullName)) {
+      document.getElementById('wrap_fullName').classList.add('invalid');
+      isValid = false;
+    }
+    const age = getAgeInYears(form.dob);
+    if (!form.dob || age < 21 || age > 70) {
+      document.getElementById('wrap_dob').classList.add('invalid');
+      isValid = false;
+    }
+    if (!form.gender) {
+      document.getElementById('wrap_gender').classList.add('invalid');
+      isValid = false;
+    }
+    if (!isRealisticEmail(form.email)) {
+      document.getElementById('wrap_email').classList.add('invalid');
+      isValid = false;
+    }
+    if (!isRealisticPhone(form.phone)) {
+      document.getElementById('wrap_phone').classList.add('invalid');
+      isValid = false;
+    }
+    if (!isRealisticPhone(form.emergencyPhone) || form.emergencyPhone.replace(/\D/g,'') === form.phone.replace(/\D/g,'')) {
+      document.getElementById('wrap_emergencyPhone').classList.add('invalid');
+      isValid = false;
+    }
+    if (!form.city || form.city.trim().length < 2) {
+      document.getElementById('wrap_city').classList.add('invalid');
+      isValid = false;
+    }
+  } 
+  else if (currentStep === 1) {
+    if (!form.highestDegree) {
+      document.getElementById('wrap_highestDegree').classList.add('invalid');
+      isValid = false;
+    }
+    if (!form.specialization || form.specialization.trim().length < 2) {
+      document.getElementById('wrap_specialization').classList.add('invalid');
+      isValid = false;
+    }
+    if (!form.university || form.university.trim().length < 3) {
+      document.getElementById('wrap_university').classList.add('invalid');
+      isValid = false;
+    }
+    const pYear = parseInt(form.passingYear, 10);
+    if (!form.passingYear || isNaN(pYear) || pYear < 1970 || pYear > 2026) {
+      document.getElementById('wrap_passingYear').classList.add('invalid');
+      isValid = false;
+    }
+    if (!form.licenseNo || form.licenseNo.trim().length < 3) {
+      document.getElementById('wrap_licenseNo').classList.add('invalid');
+      isValid = false;
+    }
+  }
+  else if (currentStep === 2) {
+    if (!form.totalExperience) {
+      document.getElementById('wrap_totalExperience').classList.add('invalid');
+      isValid = false;
+    }
+    if (!form.previousSchool || form.previousSchool.trim().length < 2) {
+      document.getElementById('wrap_previousSchool').classList.add('invalid');
+      isValid = false;
+    }
+    if (!form.previousDesignation || form.previousDesignation.trim().length < 2) {
+      document.getElementById('wrap_previousDesignation').classList.add('invalid');
+      isValid = false;
+    }
+    if (!form.previousSalary || form.previousSalary.trim().length < 2) {
+      document.getElementById('wrap_previousSalary').classList.add('invalid');
+      isValid = false;
+    }
+    if (!form.expectedSalary || form.expectedSalary.trim().length < 2) {
+      document.getElementById('wrap_expectedSalary').classList.add('invalid');
+      isValid = false;
+    }
+    if (!form.noticePeriod) {
+      document.getElementById('wrap_noticePeriod').classList.add('invalid');
+      isValid = false;
+    }
+  }
+  else if (currentStep === 3) {
+    const requiredSlots = ['govId', 'degreeCert', 'experienceCert', 'salarySlips', 'badgePhoto'];
+    let missingCount = 0;
+
+    requiredSlots.forEach(slot => {
+      const slotEl = document.getElementById(`slot_${slot}`);
+      if (!uploadedFiles[slot]) {
+        missingCount++;
+        if (slotEl) slotEl.classList.add('invalid-slot');
+      } else {
+        if (slotEl) slotEl.classList.remove('invalid-slot');
+      }
+    });
+
+    if (missingCount > 0) {
+      const errEl = document.getElementById('docVaultErr');
+      if (errEl) errEl.style.display = 'block';
+      isValid = false;
+    } else {
+      const errEl = document.getElementById('docVaultErr');
+      if (errEl) errEl.style.display = 'none';
+    }
+  }
+
+  return isValid;
+}
+
+function nextStep(){
+  if (!validateStep()) return;
+  if (currentStep === wizardSteps.length - 1) {
+    submitStaffApplication();
+    return;
+  }
+  currentStep++;
+  renderStep();
+}
+
+function prevStep(){ if(currentStep>0){ currentStep--; renderStep(); } }
+
+async function submitStaffApplication() {
+  const btn = document.getElementById('nextBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting Application...';
+
+  const reqId = "STF-REQ-" + Math.floor(1000 + Math.random() * 9000);
+  const docsPayload = {};
+
+  for (let key of Object.keys(uploadedFiles)) {
+    if (uploadedFiles[key]) {
+      docsPayload[key] = await fileToBase64(uploadedFiles[key]);
+    }
+  }
+
+  const staffObj = {
+    requestId: reqId,
+    staffId: "PENDING APPROVAL",
+    fullName: form.fullName,
+    dob: form.dob,
+    gender: form.gender,
+    email: form.email,
+    phone: form.phone,
+    emergencyPhone: form.emergencyPhone || '',
+    city: form.city || '',
+    staffType: form.staffType,
+    department: form.specialization || 'Academic Operations',
+    designation: form.highestDegree,
+    assignedClass: "Unassigned",
+    highestDegree: form.highestDegree,
+    university: form.university || '',
+    totalExperience: form.totalExperience || 'Fresher',
+    previousSchool: form.previousSchool || '',
+    previousSalary: form.previousSalary || '',
+    offeredSalary: form.expectedSalary || '',
+    status: "Pending Approval",
+    password: ""
+  };
+
+  DB.staff.push(staffObj);
+
+  await syncDataToGoogleSheet('registerStaff', { staff: staffObj, documents: docsPayload });
+
+  document.getElementById('confirmationArea').innerHTML = `
+    <div class="ticket">
+      <div class="ticket-main">
+        <div class="tag">⏳ Staff Registration Pending Admin Approval</div>
+        <h3>${form.fullName}</h3>
+        <div class="meta">
+          <div>Ref Request ID<b>${reqId}</b></div>
+          <div>Role Category<b>${form.staffType}</b></div>
+          <div>Email<b>${form.email}</b></div>
+          <div>Status<b class="text-amber-400">Pending Review</b></div>
+        </div>
+      </div>
+      <div class="ticket-stub">
+        <div class="yr">'26</div>
+        <div class="id">${reqId}</div>
+      </div>
+    </div>
+    <div class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-300 mt-3 text-center">
+      📩 Application submitted! Upon document verification by the Super Admin, your Official Staff ID, Class Assignment & Password will be emailed to <b>${form.email}</b>.
+    </div>`;
+
+  btn.textContent = 'Submitted for Review';
+}
+
+function handleRoleChange(role) {
+  if (role === 'admin') {
+    if (!adminSessionToken) {
+      document.getElementById('adminGateOverlay').classList.remove('hidden');
+    } else {
+      switchTab('dashboard');
+    }
+  } else if (role === 'staff_portal') {
+    switchTab('staff_portal');
+  } else {
+    switchTab('wizard');
+  }
+}
+
+async function checkAdminPassword() {
+  const inp = document.getElementById('adminPassInput');
+  const err = document.getElementById('adminGateErr');
+  const btn = document.getElementById('adminUnlockBtn');
+
+  btn.disabled = true;
+  btn.textContent = 'Verifying Passcode...';
+
+  const response = await syncDataToGoogleSheet('verifyAdminPasscode', {
+    passcode: inp.value
+  });
+
+  btn.disabled = false;
+  btn.textContent = 'Unlock Staff Admin';
+
+  if (response && response.status === 'success') {
+    adminSessionToken = response.adminToken;
+    err.textContent = "";
+    inp.value = "";
+    document.getElementById('adminGateOverlay').classList.add('hidden');
+    applyRoleGates();
+    switchTab('dashboard');
+  } else {
+    err.textContent = "Incorrect Admin Passcode. Access denied.";
+    inp.value = "";
+  }
+}
+
+function applyRoleGates() {
+  const isSuperAdmin = !!adminSessionToken;
+  document.getElementById('tabBulkBtn').classList.toggle('locked', !isSuperAdmin);
+  document.getElementById('dashLockIcon').classList.toggle('hidden', isSuperAdmin);
+  document.getElementById('tabDashBtn').classList.toggle('locked', !isSuperAdmin);
+  document.getElementById('bulkLockIcon').classList.toggle('hidden', isSuperAdmin);
+}
+
+function switchTab(tab) {
+  const isSuperAdmin = !!adminSessionToken;
+  if ((tab === 'bulk' || tab === 'dashboard') && !isSuperAdmin) {
+    document.getElementById('adminGateOverlay').classList.remove('hidden');
+    return;
+  }
+
+  document.getElementById('tabWizardBtn').classList.toggle('active', tab==='wizard');
+  document.getElementById('tabStaffPortalBtn').classList.toggle('active', tab==='staff_portal');
+  document.getElementById('tabBulkBtn').classList.toggle('active', tab==='bulk');
+  document.getElementById('tabDashBtn').classList.toggle('active', tab==='dashboard');
+
+  document.getElementById('wizardPane').classList.toggle('hidden', tab!=='wizard');
+  document.getElementById('staffPortalPane').classList.toggle('hidden', tab!=='staff_portal');
+  document.getElementById('bulkPane').classList.toggle('hidden', tab!=='bulk');
+  document.getElementById('dashPane').classList.toggle('hidden', tab!=='dashboard');
+
+  if (tab === 'dashboard' && isSuperAdmin) {
+    fetchGoogleSheetDatabase().then(() => renderStaffDashboard());
+  }
+}
+
+function openAdminPassModal() {
+  document.getElementById('changeAdminPassModal').classList.remove('hidden');
+}
+function closeAdminPassModal() {
+  document.getElementById('changeAdminPassModal').classList.add('hidden');
+}
+
+async function submitAdminPasscodeChange() {
+  const oldPass = document.getElementById('adminOldPassInp').value.trim();
+  const newPass = document.getElementById('adminNewPassInp').value.trim();
+  const confirmPass = document.getElementById('adminConfirmPassInp').value.trim();
+  const err = document.getElementById('adminPassChangeErr');
+
+  if (newPass.length < 6) {
+    err.textContent = "New passcode must be at least 6 characters.";
+    return;
+  }
+  if (newPass !== confirmPass) {
+    err.textContent = "New passcodes do not match.";
+    return;
+  }
+
+  const res = await syncDataToGoogleSheet('changeAdminPasscode', {
+    adminToken: adminSessionToken,
+    oldPasscode: oldPass,
+    newPasscode: newPass
+  });
+
+  if (res && res.status === 'success') {
+    alert("🎉 Master Admin Passcode updated successfully!");
+    closeAdminPassModal();
+    document.getElementById('adminOldPassInp').value = "";
+    document.getElementById('adminNewPassInp').value = "";
+    document.getElementById('adminConfirmPassInp').value = "";
+  } else {
+    err.textContent = res ? res.message : "Error updating passcode.";
+  }
+}
+
+function renderStaffDashboard() {
+  const container = document.getElementById('dashQueueContent');
+  
+  const pending = DB.staff.filter(s => {
+    const st = (s.status || '').toString().toLowerCase();
+    const sid = (s.staffId || '').toString().toLowerCase();
+    return st.includes('pending') || st.includes('unapproved') || sid.includes('pending');
+  });
+
+  const approved = DB.staff.filter(s => {
+    const st = (s.status || '').toString().toLowerCase();
+    return st === 'approved' || st === 'active';
+  });
+
+  const pendingRows = pending.map(s => `
+    <tr class="border-b border-slate-800">
+      <td class="p-3 mono text-purple-400 font-semibold">${s.requestId || 'STF-REQ'}</td>
+      <td class="p-3 text-white font-bold">${s.fullName || '—'}<br><span class="text-xs text-slate-400 font-normal">${s.staffType || 'Faculty'}</span></td>
+      <td class="p-3 text-slate-300">${s.highestDegree || s.qualification || '—'}<br><span class="text-slate-500">${s.university || ''}</span></td>
+      <td class="p-3 text-slate-300">${s.email || '—'}<br><span class="text-slate-500">${s.phone || '—'}</span></td>
+      <td class="p-3">
+        <select id="assign_class_${s.requestId}" class="bg-slate-900 border border-slate-700 text-xs text-teal-300 rounded p-1.5 focus:outline-none">
+          <option value="Grade 1 - Section A">Grade 1 - Section A</option>
+          <option value="Grade 2 - Section A">Grade 2 - Section A</option>
+          <option value="Grade 3 - Section A">Grade 3 - Section A</option>
+          <option value="Grade 5 - Section B">Grade 5 - Section B</option>
+          <option value="Grade 8 - Section A">Grade 8 - Section A</option>
+          <option value="Grade 10 - Section A">Grade 10 - Section A</option>
+          <option value="Administrative Support">Administrative Support</option>
+          <option value="N/A - Operations">N/A - Operations</option>
+        </select>
+      </td>
+      <td class="p-3 text-right">
+        <button class="btn btn-purple text-xs py-1 px-3" onclick="approveStaff('${s.requestId}', '${s.email}')">✓ Approve & Assign</button>
+      </td>
+    </tr>`).join('') || `<tr><td colspan="6" class="p-4 text-center text-slate-500"><i class="fas fa-check-circle text-emerald-400 mr-2"></i>No pending staff applications.</td></tr>`;
+
+  const approvedRows = approved.map(s => `
+    <tr class="border-b border-slate-800">
+      <td class="p-3 mono text-teal-400 font-bold">${s.staffId || 'STF-2026'}</td>
+      <td class="p-3 text-white font-bold">${s.fullName || '—'}</td>
+      <td class="p-3 text-slate-300">${s.department || s.staffType || 'Faculty'}</td>
+      <td class="p-3 text-teal-300 font-semibold">${s.assignedClass || 'Unassigned'}</td>
+      <td class="p-3 text-slate-300">${s.email || '—'}</td>
+      <td class="p-3"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/20">Active</span></td>
+    </tr>`).join('') || `<tr><td colspan="6" class="p-4 text-center text-slate-500">No active faculty records found.</td></tr>`;
+
+  container.innerHTML = `
+    <div class="grid grid-cols-3 gap-4 mb-6">
+      <div class="panel"><span>Pending Queue</span><b class="text-amber-400 text-xl block mt-1">${pending.length}</b></div>
+      <div class="panel"><span>Active Faculty</span><b class="text-teal-400 text-xl block mt-1">${approved.length}</b></div>
+      <div class="panel"><span>Total Registered</span><b class="text-white text-xl block mt-1">${DB.staff.length}</b></div>
+    </div>
+
+    <div class="panel mb-6">
+      <h4 class="text-amber-400 mb-3 text-sm font-bold"><i class="fas fa-clock mr-2"></i>Pending Staff Qualifications & Verification Queue (${pending.length})</h4>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead>
+            <tr class="text-slate-400 border-b border-slate-800">
+              <th class="p-2">Request Ref</th>
+              <th class="p-2">Candidate Name</th>
+              <th class="p-2">Highest Degree</th>
+              <th class="p-2">Contact Info</th>
+              <th class="p-2">Assign Class / Section</th>
+              <th class="p-2 text-right">Admin Action</th>
+            </tr>
+          </thead>
+          <tbody>${pendingRows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h4 class="text-teal-400 mb-3 text-sm font-bold"><i class="fas fa-users mr-2"></i>Active Institutional Staff Directory (${approved.length})</h4>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead>
+            <tr class="text-slate-400 border-b border-slate-800">
+              <th class="p-2">Staff ID</th>
+              <th class="p-2">Full Name</th>
+              <th class="p-2">Department</th>
+              <th class="p-2">Assigned Class</th>
+              <th class="p-2">Email</th>
+              <th class="p-2">Status</th>
+            </tr>
+          </thead>
+          <tbody>${approvedRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+async function approveStaff(reqId, email) {
+  let targetEmail = (email || '').trim();
+  if (!targetEmail || targetEmail.indexOf('@') === -1) {
+    const prompted = prompt(
+      `The applicant's email address "${targetEmail}" is incomplete.\n\nPlease enter a valid recipient email address to receive staff credentials:`,
+      "foryourhelp360@gmail.com"
+    );
+    if (!prompted || prompted.trim().indexOf('@') === -1) {
+      alert("Approval cancelled: A valid email address is required.");
+      return;
+    }
+    targetEmail = prompted.trim();
+  }
+
+  const classSelect = document.getElementById(`assign_class_${reqId}`);
+  const assignedClass = classSelect ? classSelect.value : "Grade 1 - Section A";
+
+  const res = await syncDataToGoogleSheet('approveStaff', {
+    adminToken: adminSessionToken,
+    requestId: reqId,
+    email: targetEmail,
+    assignedClass: assignedClass
+  });
+
+  if (res && res.status === 'success') {
+    alert(`🎉 Staff Record Approved!\n\nOfficial Staff ID: ${res.officialId}\nAssigned Class: ${res.assignedClass}\nInitial Password: ${res.initialPassword}\n\nCredentials dispatched to ${targetEmail}`);
+    await fetchGoogleSheetDatabase();
+  } else {
+    alert('Failed to approve staff record: ' + (res ? res.message : 'Unknown error'));
+  }
+}
+
+async function performStaffLogin() {
+  const id = document.getElementById('loginStaffId').value.trim().toUpperCase();
+  const pass = document.getElementById('loginPassword').value;
+  const err = document.getElementById('staffLoginErr');
+  const btn = document.getElementById('staffLoginBtn');
+
+  if (!id || !pass) {
+    err.textContent = 'Please fill in both Staff ID and Password.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Verifying Credentials...';
+
+  const res = await syncDataToGoogleSheet('staffLogin', {
+    id: id,
+    password: pass
+  });
+
+  btn.disabled = false;
+  btn.textContent = 'Sign In to Staff Portal';
+
+  if (res && res.status === 'success') {
+    const user = res.user;
+    err.textContent = '';
+    document.getElementById('staffLoginBox').classList.add('hidden');
+    document.getElementById('staffProfileContent').classList.remove('hidden');
+    document.getElementById('staffProfileContent').innerHTML = `
+      <div class="ticket approved">
+        <div class="ticket-main">
+          <div class="tag">✓ Verified Staff Identity Badge</div>
+          <h3>${user.fullName}</h3>
+          <div class="meta">
+            <div>Official Staff ID<b>${user.id}</b></div>
+            <div>Department<b>${user.department || 'Academic'}</b></div>
+            <div>Assigned Class<b>${user.assignedClass || 'Unassigned'}</b></div>
+            <div>Email<b>${user.email}</b></div>
+          </div>
+        </div>
+        <div class="ticket-stub">
+          <div class="yr">'26</div>
+          <div class="id">${user.id}</div>
+        </div>
+      </div>`;
+  } else {
+    err.textContent = res ? res.message : "Invalid Staff ID or Password.";
+  }
+}
+
+function downloadStaffTemplate() {
+  const headers = ["Full_Name","DOB","Gender","Staff_Category","Highest_Degree","University","Email","Phone"];
+  const example = ["Dr. Sarah Jenkins","1988-04-12","Female","Teaching Faculty","Ph.D. in Physics","Delhi University","s.jenkins@scholalink.edu","9876543210"];
+  const ws = XLSX.utils.aoa_to_sheet([headers, example]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "StaffBulkTemplate");
+  XLSX.writeFile(wb, "ScholaLink_Staff_Hiring_Template.xlsx");
+}
+
+window.onload = function() {
+  renderStep();
+  fetchGoogleSheetDatabase();
+};
+</script>
+</body>
+</html>
