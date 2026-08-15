@@ -151,6 +151,75 @@ input,select,textarea{font-family:inherit;font-size:13.5px;}
   </div>
 </div>
 
+<!-- Admin Edit Staff Details Modal -->
+<div class="modal-bg hidden" id="adminEditStaffModal">
+  <div class="modal" style="width:420px;text-align:left;">
+    <h3 class="mb-2 text-center text-purple-400">✏️ Edit Staff Profile & Class Assignment</h3>
+    <div class="text-slate-400 text-xs mb-4 text-center">Update assigned class, email, or department. Saved to Google Sheets.</div>
+    <input type="hidden" id="editStaffTargetId">
+    <div class="field">
+      <label>Staff ID (Read-Only)</label>
+      <input type="text" id="editStaffDisplayId" readonly class="mono uppercase bg-slate-900/50 text-slate-400">
+    </div>
+    <div class="field">
+      <label>Staff Member Name</label>
+      <input type="text" id="editStaffName" readonly class="bg-slate-900/50 text-slate-400">
+    </div>
+    <div class="field">
+      <label>Assigned Class / Responsibility</label>
+      <select id="editStaffClass">
+        <option value="Grade 1 - Section A">Grade 1 - Section A</option>
+        <option value="Grade 2 - Section A">Grade 2 - Section A</option>
+        <option value="Grade 3 - Section A">Grade 3 - Section A</option>
+        <option value="Grade 5 - Section B">Grade 5 - Section B</option>
+        <option value="Grade 8 - Section A">Grade 8 - Section A</option>
+        <option value="Grade 10 - Section A">Grade 10 - Section A</option>
+        <option value="Administrative Support">Administrative Support</option>
+        <option value="N/A - Operations">N/A - Operations</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Official Email Address</label>
+      <input type="email" id="editStaffEmail" placeholder="name@domain.com">
+    </div>
+    <div class="field">
+      <label>Department</label>
+      <input type="text" id="editStaffDept" placeholder="e.g. Science & Physics">
+    </div>
+    <div id="adminEditStaffErr" class="text-red-400 text-xs mb-3 font-semibold"></div>
+    <div class="flex space-x-3">
+      <button class="btn btn-ghost flex-1" onclick="closeEditStaffModal()">Cancel</button>
+      <button class="btn btn-purple flex-1" onclick="submitStaffDetailsUpdate()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Staff Password Self-Service Modal -->
+<div class="modal-bg hidden" id="staffPassModal">
+  <div class="modal" style="width:400px;text-align:left;">
+    <h3 class="mb-2 text-center text-teal-400">🔑 Change Staff Account Password</h3>
+    <div class="text-slate-400 text-xs mb-4 text-center">Update your staff portal password (Allowed max 3 times per month).</div>
+    <input type="hidden" id="staffPassTargetId">
+    <div class="field">
+      <label>Current Password</label>
+      <input type="password" id="staffPassOld" placeholder="Enter current password">
+    </div>
+    <div class="field">
+      <label>New Password</label>
+      <input type="password" id="staffPassNew" placeholder="Min 4 characters">
+    </div>
+    <div class="field">
+      <label>Confirm New Password</label>
+      <input type="password" id="staffPassConfirm" placeholder="Re-enter new password">
+    </div>
+    <div id="staffPassErr" class="text-red-400 text-xs mb-3 font-semibold"></div>
+    <div class="flex space-x-3">
+      <button class="btn btn-ghost flex-1" onclick="closeStaffPassModal()">Cancel</button>
+      <button class="btn btn-purple flex-1" id="saveStaffPassBtn" onclick="submitStaffPasswordSelfChange()">Update Password</button>
+    </div>
+  </div>
+</div>
+
 <!-- Camera Modal -->
 <div class="modal-bg hidden" id="cameraModal">
   <div class="modal" style="width:480px">
@@ -961,7 +1030,11 @@ function renderStaffDashboard() {
       <td class="p-3 text-teal-300 font-semibold">${s.assignedClass || 'Unassigned'}</td>
       <td class="p-3 text-slate-300">${s.email || '—'}</td>
       <td class="p-3"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/20">Active</span></td>
-    </tr>`).join('') || `<tr><td colspan="6" class="p-4 text-center text-slate-500">No active faculty records found.</td></tr>`;
+      <td class="p-3 text-right space-x-1">
+        <button class="btn btn-ghost text-xs py-1 px-2 border-slate-700 text-slate-300" onclick="openEditStaffModal('${s.staffId}')" title="Edit Profile Details">✏️ Edit</button>
+        <button class="btn btn-ghost text-xs py-1 px-2 border-red-500/30 text-red-400 hover:bg-red-500/10" onclick="deactivateStaffUser('${s.staffId}', '${s.fullName}')" title="Revoke Login Access">🚫 Deactivate</button>
+      </td>
+    </tr>`).join('') || `<tr><td colspan="7" class="p-4 text-center text-slate-500">No active faculty records found.</td></tr>`;
 
   container.innerHTML = `
     <div class="grid grid-cols-3 gap-4 mb-6">
@@ -1001,12 +1074,77 @@ function renderStaffDashboard() {
               <th class="p-2">Assigned Class</th>
               <th class="p-2">Email</th>
               <th class="p-2">Status</th>
+              <th class="p-2 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>${approvedRows}</tbody>
         </table>
       </div>
     </div>`;
+}
+
+function openEditStaffModal(staffId) {
+  const stf = DB.staff.find(s => s.staffId === staffId);
+  if (!stf) return;
+  document.getElementById('editStaffTargetId').value = staffId;
+  document.getElementById('editStaffDisplayId').value = staffId;
+  document.getElementById('editStaffName').value = stf.fullName || '';
+  document.getElementById('editStaffClass').value = stf.assignedClass || 'Grade 1 - Section A';
+  document.getElementById('editStaffEmail').value = stf.email || '';
+  document.getElementById('editStaffDept').value = stf.department || 'Academic Operations';
+  document.getElementById('adminEditStaffErr').textContent = '';
+  document.getElementById('adminEditStaffModal').classList.remove('hidden');
+}
+
+function closeEditStaffModal() {
+  document.getElementById('adminEditStaffModal').classList.add('hidden');
+}
+
+async function submitStaffDetailsUpdate() {
+  const staffId = document.getElementById('editStaffTargetId').value;
+  const assignedClass = document.getElementById('editStaffClass').value;
+  const email = document.getElementById('editStaffEmail').value.trim();
+  const department = document.getElementById('editStaffDept').value.trim();
+  const err = document.getElementById('adminEditStaffErr');
+
+  if (!isRealisticEmail(email)) {
+    err.textContent = 'Please enter a valid, realistic email address.';
+    return;
+  }
+
+  const res = await syncDataToGoogleSheet('updateStaffDetails', {
+    adminToken: adminSessionToken,
+    staffId: staffId,
+    assignedClass: assignedClass,
+    email: email,
+    department: department
+  });
+
+  if (res && res.status === 'success') {
+    alert(`🎉 Profile details updated for Staff ID ${staffId}!`);
+    closeEditStaffModal();
+    await fetchGoogleSheetDatabase();
+  } else {
+    err.textContent = res ? res.message : 'Error updating staff details.';
+  }
+}
+
+async function deactivateStaffUser(staffId, name) {
+  if (!confirm(`⚠️ Are you sure you want to DEACTIVATE ${name} (${staffId})?\n\nThis will revoke their password, set status to INACTIVE, and block them from signing into the Staff Portal.`)) {
+    return;
+  }
+
+  const res = await syncDataToGoogleSheet('deactivateStaff', {
+    adminToken: adminSessionToken,
+    staffId: staffId
+  });
+
+  if (res && res.status === 'success') {
+    alert(`🚫 Access Revoked: Staff member ${name} (${staffId}) is now INACTIVE.`);
+    await fetchGoogleSheetDatabase();
+  } else {
+    alert('Failed to deactivate staff user: ' + (res ? res.message : 'Unknown error'));
+  }
 }
 
 async function approveStaff(reqId, email) {
@@ -1084,9 +1222,70 @@ async function performStaffLogin() {
           <div class="yr">'26</div>
           <div class="id">${user.id}</div>
         </div>
+      </div>
+      <div class="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex justify-between items-center text-xs">
+        <div>
+          <span class="text-slate-400">Security Setting:</span>
+          <span class="text-teal-400 font-bold ml-1">Password Self-Service Enabled</span>
+        </div>
+        <button class="btn btn-purple text-xs py-1.5 px-3" onclick="openStaffPassModal('${user.id}')">🔑 Change My Password</button>
       </div>`;
   } else {
-    err.textContent = res ? res.message : "Invalid Staff ID or Password.";
+    err.textContent = res ? res.message : "Invalid Staff ID or Password (or access revoked).";
+  }
+}
+
+function openStaffPassModal(staffId) {
+  document.getElementById('staffPassTargetId').value = staffId;
+  document.getElementById('staffPassOld').value = '';
+  document.getElementById('staffPassNew').value = '';
+  document.getElementById('staffPassConfirm').value = '';
+  document.getElementById('staffPassErr').textContent = '';
+  document.getElementById('staffPassModal').classList.remove('hidden');
+}
+
+function closeStaffPassModal() {
+  document.getElementById('staffPassModal').classList.add('hidden');
+}
+
+async function submitStaffPasswordSelfChange() {
+  const staffId = document.getElementById('staffPassTargetId').value;
+  const oldPass = document.getElementById('staffPassOld').value;
+  const newPass = document.getElementById('staffPassNew').value;
+  const confirmPass = document.getElementById('staffPassConfirm').value;
+  const err = document.getElementById('staffPassErr');
+  const btn = document.getElementById('saveStaffPassBtn');
+
+  if (!oldPass || !newPass) {
+    err.textContent = 'Please fill in both current and new passwords.';
+    return;
+  }
+  if (newPass.length < 4) {
+    err.textContent = 'New password must be at least 4 characters long.';
+    return;
+  }
+  if (newPass !== confirmPass) {
+    err.textContent = 'New passwords do not match.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Updating Password...';
+
+  const res = await syncDataToGoogleSheet('changeUserPassword', {
+    id: staffId,
+    currentPassword: oldPass,
+    newPassword: newPass
+  });
+
+  btn.disabled = false;
+  btn.textContent = 'Update Password';
+
+  if (res && res.status === 'success') {
+    alert('🎉 Password updated successfully! Stored in central Google Sheet.');
+    closeStaffPassModal();
+  } else {
+    err.textContent = res ? res.message : 'Error updating password.';
   }
 }
 
