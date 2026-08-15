@@ -186,6 +186,10 @@ input,select,textarea{font-family:inherit;font-size:13.5px;}
       <label>Department</label>
       <input type="text" id="editStaffDept" placeholder="e.g. Science & Physics">
     </div>
+    <div class="field">
+      <label>Offered Monthly Salary / CTC</label>
+      <input type="text" id="editStaffSalary" placeholder="e.g. ₹65,000 / month">
+    </div>
     <div id="adminEditStaffErr" class="text-red-400 text-xs mb-3 font-semibold"></div>
     <div class="flex space-x-3">
       <button class="btn btn-ghost flex-1" onclick="closeEditStaffModal()">Cancel</button>
@@ -1092,6 +1096,7 @@ function openEditStaffModal(staffId) {
   document.getElementById('editStaffClass').value = stf.assignedClass || 'Grade 1 - Section A';
   document.getElementById('editStaffEmail').value = stf.email || '';
   document.getElementById('editStaffDept').value = stf.department || 'Academic Operations';
+  document.getElementById('editStaffSalary').value = stf.offeredSalary || stf.expectedSalary || stf.previousSalary || '';
   document.getElementById('adminEditStaffErr').textContent = '';
   document.getElementById('adminEditStaffModal').classList.remove('hidden');
 }
@@ -1105,6 +1110,7 @@ async function submitStaffDetailsUpdate() {
   const assignedClass = document.getElementById('editStaffClass').value;
   const email = document.getElementById('editStaffEmail').value.trim();
   const department = document.getElementById('editStaffDept').value.trim();
+  const offeredSalary = document.getElementById('editStaffSalary').value.trim();
   const err = document.getElementById('adminEditStaffErr');
 
   if (!isRealisticEmail(email)) {
@@ -1117,7 +1123,8 @@ async function submitStaffDetailsUpdate() {
     staffId: staffId,
     assignedClass: assignedClass,
     email: email,
-    department: department
+    department: department,
+    offeredSalary: offeredSalary
   });
 
   if (res && res.status === 'success') {
